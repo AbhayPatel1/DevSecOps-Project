@@ -1,8 +1,13 @@
+### This project demonstrates a comprehensive DevSecOps pipeline, integrating security into every stage of development and deployment. Due to cost constraints, the EC2 instances and Kubernetes clusters are not kept running continuously; hence, this detailed README provides an in-depth walkthrough of the project's setup and functionality.
+
+Here is the Project Overview and the tools we will be using
+<br>
+
 <div align="center">
   <img src="./public/assets/DevSecOps.png" alt="Logo" width="100%" height="100%">
 
   <br>
-  <a href="http://netflix-clone-with-tmdb-using-react-mui.vercel.app/">
+  <a href="https://abhay-netflix.netlify.app/">
     <img src="./public/assets/netflix-logo.png" alt="Logo" width="100" height="32">
   </a>
 </div>
@@ -14,13 +19,7 @@
   <p align="center">Home Page</p>
 </div>
 
-# **Youtube Video for step by step Demonstration!**
-[![Video Tutorial](https://img.youtube.com/vi/g8X5AoqCJHc/0.jpg)](https://youtu.be/g8X5AoqCJHc)
 
-
-## Susbcribe:
-[https://www.youtube.com/@cloudchamp?
-](https://www.youtube.com/@cloudchamp?sub_confirmation=1)
 
 # Deploy Netflix Clone on Cloud using Jenkins - DevSecOps Project!
 
@@ -29,7 +28,15 @@
 **Step 1: Launch EC2 (Ubuntu 22.04):**
 
 - Provision an EC2 instance on AWS with Ubuntu 22.04.
+- Launch t2.large instance and it does not come under free tier
 - Connect to the instance using SSH.
+
+It should look like this
+
+<div align="center">
+  <img src="./public/assets/netflix_jenkins.png" alt="Logo" width="100%" height="100%">
+  <p align="center">AWS netflix-jenkins EC2 instance</p>
+</div>
 
 **Step 2: Clone the Code:**
 
@@ -37,9 +44,13 @@
 - Clone your application's code repository onto the EC2 instance:
     
     ```bash
-    git clone https://github.com/N4si/DevSecOps-Project.git
+    git clone https://github.com/AbhayPatel1/DevSecOps-Project
     ```
     
+<div align="center">
+  <img src="./public/assets/server1.png" alt="Logo" width="100%" height="100%">
+  <p align="center">AWS netflix-jenkins connect</p>
+</div> 
 
 **Step 3: Install Docker and Run the App Using a Container:**
 
@@ -49,7 +60,7 @@
     
     sudo apt-get update
     sudo apt-get install docker.io -y
-    sudo usermod -aG docker $USER  # Replace with your system's username, e.g., 'ubuntu'
+    sudo usermod -aG docker $USER 
     newgrp docker
     sudo chmod 777 /var/run/docker.sock
     ```
@@ -97,6 +108,8 @@ docker build --build-arg TMDB_V3_API_KEY=<your-api-key> -t netflix .
         
         publicIP:9000 (by default username & password is admin)
         
+##    Note: Don't forget to expose the ports which you are using in your server security ports
+        
         To install Trivy:
         ```
         sudo apt-get install wget apt-transport-https gnupg lsb-release
@@ -115,6 +128,8 @@ docker build --build-arg TMDB_V3_API_KEY=<your-api-key> -t netflix .
 2. **Integrate SonarQube and Configure:**
     - Integrate SonarQube with your CI/CD pipeline.
     - Configure SonarQube to analyze code for quality and security issues.
+
+    we will do the this step after configuring ci/cd pipeline in jenkins
 
 **Phase 3: CI/CD Setup**
 
@@ -146,6 +161,13 @@ docker build --build-arg TMDB_V3_API_KEY=<your-api-key> -t netflix .
         
         publicIp:8080
         
+        It should look like this
+
+<div align="center">
+  <img src="./public/assets/jenkins_home.png" alt="Logo" width="100%" height="100%">
+  <p align="center">Jenkins Home Page</p>
+</div> 
+
 2. **Install Necessary Plugins in Jenkins:**
 
 Goto Manage Jenkins →Plugins → Available Plugins →
@@ -159,6 +181,10 @@ Install below plugins
 3 NodeJs Plugin (Install Without restart)
 
 4 Email Extension Plugin
+
+We are installing all these plugins to automate the process using ci/cd pipleline otherwise we will have to do all these steps manually
+
+But using this tool we can get the code run security anaylsis, do checks, make container and deploy it docker hub so that we can use it to deploy to kubernetes
 
 ### **Configure Java and Nodejs in Global Tool Configuration**
 
@@ -204,7 +230,7 @@ pipeline {
         }
         stage('Checkout from Git') {
             steps {
-                git branch: 'main', url: 'https://github.com/N4si/DevSecOps-Project.git'
+                git branch: 'main', url: 'https://github.com/AbhayPatel1/DevSecOps-Project'
             }
         }
         stage("Sonarqube Analysis") {
@@ -294,7 +320,7 @@ pipeline{
         }
         stage('Checkout from Git'){
             steps{
-                git branch: 'main', url: 'https://github.com/N4si/DevSecOps-Project.git'
+                git branch: 'main', url: 'https://github.com/AbhayPatel1/DevSecOps-Project'
             }
         }
         stage("Sonarqube Analysis "){
@@ -317,12 +343,14 @@ pipeline{
                 sh "npm install"
             }
         }
+        // this step is very time consuming and fails because of nvd api so you can skip this step
         stage('OWASP FS SCAN') {
             steps {
                 dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check'
                 dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
             }
         }
+        //scans file systems
         stage('TRIVY FS SCAN') {
             steps {
                 sh "trivy fs . > trivyfs.txt"
@@ -332,35 +360,62 @@ pipeline{
             steps{
                 script{
                    withDockerRegistry(credentialsId: 'docker', toolName: 'docker'){   
-                       sh "docker build --build-arg TMDB_V3_API_KEY=<yourapikey> -t netflix ."
-                       sh "docker tag netflix nasi101/netflix:latest "
-                       sh "docker push nasi101/netflix:latest "
+                       sh "docker build --build-arg TMDB_V3_API_KEY=<cdf80b3aa7e61e9ec6209b67795b565e -t netflix ."
+                       sh "docker tag netflix abhaydckhb/netflix:latest "
+                       sh "docker push abhaydckhb/netflix:latest "
                     }
                 }
             }
         }
         stage("TRIVY"){
             steps{
-                sh "trivy image nasi101/netflix:latest > trivyimage.txt" 
+                sh "trivy image abhaydckhb/netflix:latest > trivyimage.txt" 
             }
         }
         stage('Deploy to container'){
             steps{
-                sh 'docker run -d --name netflix -p 8081:80 nasi101/netflix:latest'
+                sh 'docker run -d -p 8081:80 abhaydckhb/netflix:latest'
             }
         }
     }
 }
 
-
-If you get docker login failed errorr
-
-sudo su
-sudo usermod -aG docker jenkins
-sudo systemctl restart jenkins
-
-
 ```
+
+Your pipeline should like this on running and you will also be able to see a docker image automatically uploaded on docker hub
+
+<div align="center">
+  <img src="./public/assets/pipeline1.png" alt="Logo" width="100%" height="100%">
+  <p align="center">Pipeline</p>
+</div> 
+
+You can check these steps in detail on jenkins 
+I'll show you some important steps
+
+<div align="center">
+  <img src="./public/assets/sonarqub2.png" alt="Logo" width="100%" height="100%">
+  <p align="center">Code anaylsis overview</p>
+</div> 
+
+<div align="center">
+  <img src="./public/assets/sonarqub1.png" alt="Logo" width="100%" height="100%">
+  <p align="center">Code Anaylsis in detail</p>
+</div> 
+
+Trivy: Focuses on vulnerability scanning for containers, Kubernetes, and other infrastructure components. It detects security issues in dependencies, OS packages, and container images.
+
+SonarQube: Focuses on static code analysis to identify code quality issues, code smells, bugs, and security vulnerabilities in the codebase itself. It supports a wide range of programming languages and integrates with various CI/CD tools.
+
+A quality gate is a milestone in an IT project that requires that predefined criteria be met before the project can proceed to the next phase. This step is done by getting the quality check form sonar qube anaylsis
+
+
+After successful run of ci/cd pipeline you will be able to see a image on your docker hub
+
+<div align="center">
+  <img src="./public/assets/dockerhub.png" alt="Logo" width="100%" height="100%">
+  <p align="center">Docker Hub</p>
+</div> 
+
 
 **Phase 4: Monitoring**
 
@@ -371,6 +426,13 @@ sudo systemctl restart jenkins
    **Installing Prometheus:**
 
    First, create a dedicated Linux user for Prometheus and download Prometheus:
+   Create a t2.medium server
+
+<div align="center">
+  <img src="./public/assets/server2.png" alt="Logo" width="100%" height="100%">
+  <p align="center">Monitoring server</p>
+</div> 
+
 
    ```bash
    sudo useradd --system --no-create-home --shell /bin/false prometheus
@@ -456,7 +518,17 @@ sudo systemctl restart jenkins
 
    `http://<your-server-ip>:9090`
 
+<div align="center">
+  <img src="./public/assets/prometheus.png" alt="Logo" width="100%" height="100%">
+  <p align="center">Prometheus</p>
+</div> 
+
    **Installing Node Exporter:**
+
+   Here is a explanation of how both of these works together
+
+   Prometheus is a powerful monitoring and alerting tool that collects, stores, and queries metrics from various sources.
+    Node Exporter is a specialized component that exposes system-level metrics from nodes, making them available for Prometheus to scrape and use for monitoring and alerting purposes. Together, they provide a comprehensive solution for observing the performance and health of applications and their underlying infrastructure.
 
    Create a system user for Node Exporter and download Node Exporter:
 
@@ -564,6 +636,8 @@ sudo systemctl restart jenkins
 ####Grafana
 
 **Install Grafana on Ubuntu 22.04 and Set it up to Work with Prometheus**
+
+Grafana is nothing special its just using the matrices generated by node-exporter and stored by prometheus and show it in beatiful dashboards
 
 **Step 1: Install Dependencies:**
 
@@ -676,25 +750,70 @@ That's it! You've successfully installed and set up Grafana to work with Prometh
 2. **Configure Prometheus Plugin Integration:**
     - Integrate Jenkins with Prometheus to monitor the CI/CD pipeline.
 
+Here is the result of all this hardwork that you can now see your system performance on a beautiful dashboard 
+
+<div align="center">
+  <img src="./public/assets/k8_grafana.png" alt="Logo" width="100%" height="100%">
+  <p align="center">Kubernetes Cluster Perfomance Dashboard</p>
+</div> 
+
+<div align="center">
+  <img src="./public/assets/jenkins_grafana.png" alt="Logo" width="100%" height="100%">
+  <p align="center">Genkins Performance Dashboard/Monitoring Server</p>
+</div> 
+
+
 
 **Phase 5: Notification**
 
 1. **Implement Notification Services:**
-    - Set up email notifications in Jenkins or other notification mechanisms.
+    - Set up email service in jenkins 
+    - Generate a app password 
+    - Store it as credentails
+    - Set up smtp server and give credentails in configure jenkins
+
+    After setting this up correctly you will get notifications and report like this 
+
+<div align="center">
+  <img src="./public/assets/email.png" alt="Logo" width="100%" height="100%">
+  <p align="center">Notification Service</p>
+</div> 
 
 # Phase 6: Kubernetes
 
 ## Create Kubernetes Cluster with Nodegroups
 
-In this phase, you'll set up a Kubernetes cluster with node groups. This will provide a scalable environment to deploy and manage your applications.
+Create a kubernetes cluser in aws console and also create some nodes
+
+## Now we will use aws-cli to control our cluster from our terminal
+
+For that install aws-cli and kubectl from official aws page
+https://docs.aws.amazon.com/eks/latest/userguide/install-kubectl.html
+
+Now run this command to set context to start using aws cluster:
+
+    aws eks update-kubeconfig --name Netflix --region us-east-2
+
+## Now lets install Argocd
+to install - https://archive.eksworkshop.com/intermediate/290_argocd/install/
+to expose server using nodebalancer -https://archive.eksworkshop.com/intermediate/290_argocd/configure/
+
+We are using argocd to deploy our application 
+You can run these command to check that your argo cd pods are running on 
+
+    kubectl get ns
+    kubectl get all -n argocd
+
 
 ## Monitor Kubernetes with Prometheus
 
-Prometheus is a powerful monitoring and alerting toolkit, and you'll use it to monitor your Kubernetes cluster. Additionally, you'll install the node exporter using Helm to collect metrics from your cluster nodes.
+we'll install the node exporter using Helm to collect metrics from your cluster nodes.
 
 ### Install Node Exporter using Helm
 
 To begin monitoring your Kubernetes cluster, you'll install the Prometheus Node Exporter. This component allows you to collect system-level metrics from your cluster nodes. Here are the steps to install the Node Exporter using Helm:
+
+First install helm from the website to use these commands
 
 1. Add the Prometheus Community Helm repository:
 
@@ -751,6 +870,21 @@ To deploy an application with ArgoCD, you can follow these steps, which I'll out
 
 4. **Access your Application**
    - To Access the app make sure port 30007 is open in your security group and then open a new tab paste your NodeIP:30007, your app should be running.
+
+   Here is what your final argocd project will look like 
+
+<div align="center">
+  <img src="./public/assets/argocd.png" alt="Logo" width="100%" height="100%">
+  <p align="center">Argocd website</p>
+</div> 
+
+## Here is the app hosted on kubernetes cluster
+
+<div align="center">
+  <img src="./public/assets/k8_deployed.png" alt="Logo" width="100%" height="100%">
+  <p align="center">App deployed on kubernetes</p>
+</div> 
+
 
 **Phase 7: Cleanup**
 
